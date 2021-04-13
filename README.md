@@ -1,1 +1,3 @@
 # JidosyaSeisanDaisuSuii
+
+各メーカーの自動車生産台数推移をWebスクレイピングによって取得してみる。
