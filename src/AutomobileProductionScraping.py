@@ -29,11 +29,9 @@ def output_excle(seisan_daisu):
     ws = wb.active
     ws.title = '取得結果'
     rows = dataframe_to_rows(output_data, index=False, header=True)
-    # ワークシートへデータを書き込む
-    row_start_idx = 3
-    col_start_idx = 2
-    for row_no, row in enumerate(rows, row_start_idx):
-        for col_no, value in enumerate(row, col_start_idx):
+
+    for row_no, row in enumerate(rows, 3):
+        for col_no, value in enumerate(row, 2):
             ws.cell(row=row_no, column=col_no, value=value)
     wb.save('out/集計結果.xlsx')
 
@@ -49,6 +47,7 @@ def get_tyt_dht_hno():
         if(cell.value ==202101.0):
             return st_tyt_dht_hno.cell_value(6,col_j), st_tyt_dht_hno.cell_value(13,col_j), st_tyt_dht_hno.cell_value(20, col_j)
 
+# データ取得_ホンダ
 def get_hnd():
     url = 'https://www.honda.co.jp/content/dam/site/www/investors/cq_img/financial_data/monthly/CY2020_202102_monthly_data_j.xlsx'
     r = requests.get(url, allow_redirects=True)
@@ -59,6 +58,9 @@ def get_hnd():
     for col_j, cell in enumerate(st_hnd.row(84)):
         if(cell.value == '1月実績'):
             return st_hnd.cell_value(85, col_j)
+# データ取得_日産
+def get_nsn():
+    print('hoge')
 
 if __name__ == '__main__':
     main()
