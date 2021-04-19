@@ -16,6 +16,7 @@ import csv
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
 import const
+import shutil
 
 def main():
     messagebox.showinfo('確認', '各メーカーの自動車生産台数を現在のフォルダ下に出力します。')
@@ -24,12 +25,17 @@ def main():
     if not os.path.exists('out'):
         os.mkdir('out')
     seisan_daisu = [0] * 11
-    seisan_daisu[0] , seisan_daisu[1], seisan_daisu[9] = get_tyt_dht_hno()
-    seisan_daisu[2] = get_hnd()
-    seisan_daisu[4] = web_scraping(const.szkurl, 2, 1)
-    seisan_daisu[5] = web_scraping(const.mzdurl, 4, 2)
-    
+    seisan_daisu[0] = xl_scraping(const.tyturl, '生産', 2, 6, 202101.0, "data/toyota.xls")
+    seisan_daisu[1] = xl_scraping(const.tyturl, '生産', 2, 13, 202101.0, "data/toyota.xls")
+    seisan_daisu[2] = xl_scraping(const.hndurl, '日本語', 84, 85, '1月実績', "data/honda.xlsx")
+    seisan_daisu[4] = web_scraping(const.szkurl, 2, 1, "data/suzuki.csv")
+    seisan_daisu[5] = web_scraping(const.mzdurl, 4, 2, "data/mazda.csv")
+    seisan_daisu[6] = web_scraping(const.mtburl, 4, 2, "data/mitsubishi.csv")
+    seisan_daisu[8] = web_scraping(const.iszurl, 2, 2, "data/isuzu.csv")
+    seisan_daisu[9] = xl_scraping(const.tyturl, '生産', 2, 20, 202101.0, "data/toyota.xls")
+    seisan_daisu[10] = web_scraping(const.hsourl, 2, 2, "data/huso.csv")
     output_excle(seisan_daisu)
+    shutil.rmtree('data')
 
 # データ出力
 def output_excle(seisan_daisu):
@@ -45,31 +51,16 @@ def output_excle(seisan_daisu):
             ws.cell(row=row_no, column=col_no, value=value)
     wb.save('out/集計結果.xlsx')
 
-# データ取得_トヨタ_ダイハツ_日野
-def get_tyt_dht_hno():
-    url = 'https://global.toyota/pages/global_toyota/company/profile/production-sales-figures/production_sales_figures_jp.xls'
+def xl_scraping(url, sheet_name, row, target_row, cell_name, FILEPATH):
     r = requests.get(url, allow_redirects=True)
-    FILEPATH_TOYOTA_DAIHATSU_HINO ='data/toyota.xls'
-    open(FILEPATH_TOYOTA_DAIHATSU_HINO, 'wb').write(r.content)
-    wb_tyt_dht_hno = xlrd.open_workbook(FILEPATH_TOYOTA_DAIHATSU_HINO)
-    st_tyt_dht_hno = wb_tyt_dht_hno.sheet_by_name('生産')
-    for col_j, cell in enumerate(st_tyt_dht_hno.row(2)):
-        if(cell.value ==202101.0):
-            return st_tyt_dht_hno.cell_value(6,col_j), st_tyt_dht_hno.cell_value(13,col_j), st_tyt_dht_hno.cell_value(20, col_j)
+    open(FILEPATH, 'wb').write(r.content)
+    wb = xlrd.open_workbook(FILEPATH)
+    st = wb.sheet_by_name(sheet_name)
+    for col_j, cell in enumerate(st.row(row)):
+        if(cell.value == cell_name):
+            return st.cell_value(target_row, col_j)
 
-# データ取得_ホンダ
-def get_hnd():
-    url = 'https://www.honda.co.jp/content/dam/site/www/investors/cq_img/financial_data/monthly/CY2020_202102_monthly_data_j.xlsx'
-    r = requests.get(url, allow_redirects=True)
-    FILEPATH_HONDA ='data/honda.xlsx'
-    open(FILEPATH_HONDA, 'wb').write(r.content)
-    wb_hnd = xlrd.open_workbook(FILEPATH_HONDA)
-    st_hnd = wb_hnd.sheet_by_name('日本語')
-    for col_j, cell in enumerate(st_hnd.row(84)):
-        if(cell.value == '1月実績'):
-            return st_hnd.cell_value(85, col_j)
-
-def web_scraping(url, r, c):
+def web_scraping(url, r, c,FILEPATH):
     # URLの指定
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.76 Safari/537.36'}
     values = {'name': 'Michael Foord',
@@ -77,12 +68,20 @@ def web_scraping(url, r, c):
           'language': 'Python' }
     data = urllib.parse.urlencode(values).encode('utf-8')
     req = urllib.request.Request(url, data, headers)
-    html = urllib.request.urlopen(req)
+    try:
+        html = urllib.request.urlopen(req)
+    except urllib.error.HTTPError as httperror:
+        print(httperror.code)
+        print(httperror.reason)
+        sys.exit(1)
+    except urllib.error.URLError as urlerror:
+        print(urlerror.reason)
+        sys.exit(1)
     soup = BeautifulSoup(html, 'html.parser')
     # HTMLから表(tableタグ)の部分を全て取得する
     table = soup.find_all("table")
     for tab in table:
-        with open("data/mazda.csv", "w+", encoding='utf-8') as f:
+        with open(FILEPATH, "w+", encoding='utf-8') as f:
             writer = csv.writer(f)
             rows = tab.find_all("tr")
             for row in rows:
@@ -90,11 +89,12 @@ def web_scraping(url, r, c):
                 for cell in row.findAll(['td', 'th']):
                     csvRow.append(cell.get_text())
                 writer.writerow(csvRow)
+        # 1つ目の表のみ取り込むbreak
         break
-
-    with open("data/mazda.csv", 'r',encoding='utf-8') as f:
+    with open(FILEPATH, 'r',encoding='utf-8') as f:
         tar = [row for row in csv.reader(f)]
-    return tar[r][c]
+    return tar[r][c].replace(' ', '').replace('\n','')
 
 if __name__ == '__main__':
-    main()
+    for _ in tqdm(range(1)):
+        main()
