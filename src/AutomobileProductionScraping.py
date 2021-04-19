@@ -70,10 +70,10 @@ def web_scraping(url, r, c,FILEPATH):
     try:
         html = urllib.request.urlopen(req)
         soup = BeautifulSoup(html, "html.parser")
-    except urllib.error.HTTPError as httperror:
+    except urllib.error.HTTPError:
         html = requests.get(url, headers)
         soup = BeautifulSoup(html.content, "html.parser")
-    except urllib.error.URLError as urlerror:
+    except urllib.error.URLError:
         sys.exit(1)
     
     # HTMLから表(tableタグ)の部分を全て取得する
