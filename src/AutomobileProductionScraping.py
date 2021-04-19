@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 #coding: UTF-8
 import os
+import sys
 import re
 import requests
 from openpyxl import Workbook
@@ -9,6 +10,12 @@ import xlrd
 import pandas as pd
 from tkinter import messagebox
 from tqdm import tqdm
+import urllib
+import tabula
+import csv
+from urllib.request import urlopen
+from bs4 import BeautifulSoup
+import const
 
 def main():
     messagebox.showinfo('確認', '各メーカーの自動車生産台数を現在のフォルダ下に出力します。')
@@ -17,8 +24,11 @@ def main():
     if not os.path.exists('out'):
         os.mkdir('out')
     seisan_daisu = [0] * 11
-    seisan_daisu[0] , seisan_daisu[1], seisan_daisu[3] = get_tyt_dht_hno()
+    seisan_daisu[0] , seisan_daisu[1], seisan_daisu[9] = get_tyt_dht_hno()
     seisan_daisu[2] = get_hnd()
+    seisan_daisu[4] = web_scraping(const.szkurl, 2, 1)
+    seisan_daisu[5] = web_scraping(const.mzdurl, 4, 2)
+    
     output_excle(seisan_daisu)
 
 # データ出力
@@ -58,9 +68,33 @@ def get_hnd():
     for col_j, cell in enumerate(st_hnd.row(84)):
         if(cell.value == '1月実績'):
             return st_hnd.cell_value(85, col_j)
-# データ取得_日産
-def get_nsn():
-    print('hoge')
+
+def web_scraping(url, r, c):
+    # URLの指定
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.76 Safari/537.36'}
+    values = {'name': 'Michael Foord',
+          'location': 'Northampton',
+          'language': 'Python' }
+    data = urllib.parse.urlencode(values).encode('utf-8')
+    req = urllib.request.Request(url, data, headers)
+    html = urllib.request.urlopen(req)
+    soup = BeautifulSoup(html, 'html.parser')
+    # HTMLから表(tableタグ)の部分を全て取得する
+    table = soup.find_all("table")
+    for tab in table:
+        with open("data/mazda.csv", "w+", encoding='utf-8') as f:
+            writer = csv.writer(f)
+            rows = tab.find_all("tr")
+            for row in rows:
+                csvRow = []
+                for cell in row.findAll(['td', 'th']):
+                    csvRow.append(cell.get_text())
+                writer.writerow(csvRow)
+        break
+
+    with open("data/mazda.csv", 'r',encoding='utf-8') as f:
+        tar = [row for row in csv.reader(f)]
+    return tar[r][c]
 
 if __name__ == '__main__':
     main()
