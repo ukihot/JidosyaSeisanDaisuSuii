@@ -15,8 +15,6 @@ import tabula
 import csv
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
-import ssl
-sys.path.append('/settings')
 import const
 
 def main():
