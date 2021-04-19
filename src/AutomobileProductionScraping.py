@@ -9,7 +9,6 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 import xlrd
 import pandas as pd
 from tkinter import messagebox
-from tqdm import tqdm
 import urllib
 import tabula
 import csv
@@ -31,9 +30,9 @@ def main():
     seisan_daisu[4] = web_scraping(const.szkurl, 2, 1, "data/suzuki.csv")
     seisan_daisu[5] = web_scraping(const.mzdurl, 4, 2, "data/mazda.csv")
     seisan_daisu[6] = web_scraping(const.mtburl, 4, 2, "data/mitsubishi.csv")
-    seisan_daisu[8] = web_scraping(const.iszurl, 2, 2, "data/isuzu.csv")
+    seisan_daisu[8] = web_scraping(const.iszurl, 0, 11, "data/isuzu.csv")
     seisan_daisu[9] = xl_scraping(const.tyturl, '生産', 2, 20, 202101.0, "data/toyota.xls")
-    seisan_daisu[10] = web_scraping(const.hsourl, 2, 2, "data/huso.csv")
+    seisan_daisu[10] = web_scraping(const.hsourl, 0, 11, "data/huso.csv")
     output_excle(seisan_daisu)
     shutil.rmtree('data')
 
@@ -70,14 +69,13 @@ def web_scraping(url, r, c,FILEPATH):
     req = urllib.request.Request(url, data, headers)
     try:
         html = urllib.request.urlopen(req)
+        soup = BeautifulSoup(html, "html.parser")
     except urllib.error.HTTPError as httperror:
-        print(httperror.code)
-        print(httperror.reason)
-        sys.exit(1)
+        html = requests.get(url, headers)
+        soup = BeautifulSoup(html.content, "html.parser")
     except urllib.error.URLError as urlerror:
-        print(urlerror.reason)
         sys.exit(1)
-    soup = BeautifulSoup(html, 'html.parser')
+    
     # HTMLから表(tableタグ)の部分を全て取得する
     table = soup.find_all("table")
     for tab in table:
@@ -96,5 +94,4 @@ def web_scraping(url, r, c,FILEPATH):
     return tar[r][c].replace(' ', '').replace('\n','')
 
 if __name__ == '__main__':
-    for _ in tqdm(range(1)):
-        main()
+    main()
