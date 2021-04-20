@@ -9,4 +9,5 @@ hndurl = 'https://www.honda.co.jp/content/dam/site/www/investors/cq_img/financia
 
 # 更新用の情報
 prt_mzd_url = 'https://newsroom.mazda.com/ja/publicity/release/2021/'
-home_mzd ='https://newsroom.mazda.com/'
+home_mzd = 'https://newsroom.mazda.com/'
+select_wd_mzd ='ul > li:nth-of-type(1) > a'
