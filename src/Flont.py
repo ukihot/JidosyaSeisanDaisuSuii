@@ -42,61 +42,48 @@ class MainView:
         # 確認用ダイアログを出す
         onemore = messagebox.askyesno('確認', '処理を中断しますか？')
         if onemore:
-            # 再度 mainloop内から main_proc() 関数を呼ぶ
-            self.root.after(0, self.main_proc)
-        else:
             self.root.destroy()
+        else:
+            self.root.after(0, self.main_proc)
 
     def select_month(self):
         month = self.combo.get()
         if (month == '2021/01'):
-            url = MST_MAKER_URL.jan_url
             month = 1
         elif(month == '2021/02'):
-            url = MST_MAKER_URL.feb_url
             month = 2
         elif(month == '2021/03'):
-            url = MST_MAKER_URL.mar_url
             month = 3
         elif(month == '2021/04'):
-            url = MST_MAKER_URL.apr_url
             month = 4
         elif(month == '2021/05'):
-            url = MST_MAKER_URL.may_url
             month = 5
         elif(month == '2021/06'):
-            url = MST_MAKER_URL.jun_url
             month = 6
         elif(month == '2021/07'):
-            url = MST_MAKER_URL.jul_url
             month = 7
         elif(month == '2021/08'):
-            url = MST_MAKER_URL.aug_url
             month = 8
         elif(month == '2021/09'):
-            url = MST_MAKER_URL.sep_url
             month = 9
         elif(month == '2021/10'):
-            url = MST_MAKER_URL.oct_url
             month = 10
         elif(month == '2021/11'):
-            url = MST_MAKER_URL.nov_url
             month = 11
         elif(month == '2021/12'):
-            url = MST_MAKER_URL.dec_url
             month = 12
 
         exe = messagebox.askyesno("確認", str(month)+'月の生産台数を取得します。')
         if exe:
             self.top.destroy()
             try:
-                AutomobileProductionScraping.AutomobileProductionScraping(url,month)
+                AutomobileProductionScraping.AutomobileProductionScraping(month)
             except:
-                messagebox.showwarning("警告", 'エラーにより処理を中断します。')
+                messagebox.showwarning("警告", 'エラーにより処理を中断しちゃいます。')
                 traceback.print_exc()
                 sys.exit(1)
             
-            messagebox.showinfo("確認", '処理が完了しました。')
+            messagebox.showinfo("確認", '処理が完了しちゃいました。')
             self.top.destroy()
             sys.exit(0)
         else:

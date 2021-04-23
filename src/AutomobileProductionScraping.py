@@ -33,17 +33,16 @@ data = urllib.parse.urlencode(values).encode('utf-8')
 
 class AutomobileProductionScraping:
 
-    def __init__(self,url,month):
+    def __init__(self,month):
         if not os.path.exists('data'):
             os.mkdir('data')
-        self.update_mst_maker_url(url,month)
-        self.output_excle(self.aggregation(url, month))
+        reference_url = self.update_reference_url(month)
+        self.output_excle(self.aggregation(reference_url, month))
 
-    # マスタ値更新
-    def update_mst_maker_url(self,url ,month):
-        #　各メーカーの生産台数がわかるページURLを調査する。
+    #　各メーカーの生産台数がわかるページURLを調査する。
+    def update_reference_url(self, month):
         makers =['szk','mzd','mtb']
-        ls_url = []
+        url={'mzd':'https://newsroom.mazda.com/ja/publicity/release/2021/202102/210225a.html','szk':'https://www.suzuki.co.jp/release/d/2021/0225/','mtb':'https://www.mitsubishi-motors.com/jp/newsrelease/2021/detail5509.html','isz':'http://www.jada.or.jp/y-r-maker-isuzu','hso':'http://www.jada.or.jp/data/year/y-r-hanbai/y-r-maker/y-r-maker-mitsubishi-fuso/','tyt':'https://global.toyota/pages/global_toyota/company/profile/production-sales-figures/production_sales_figures_jp.xls','hnd':'https://www.honda.co.jp/content/dam/site/www/investors/cq_img/financial_data/monthly/CY2020_202102_monthly_data_j.xlsx'}
         for maker in makers:
             ## スズキのURL更新
             if (maker == 'szk'):
@@ -55,7 +54,8 @@ class AutomobileProductionScraping:
                 elements = driver.find_elements_by_tag_name('a')
                 for element in elements:
                     if re.search(MST_MAKER_URL.select[maker][month] ,element.text):
-                        ls_url.append(element.get_attribute('href'))
+                        url[maker]=element.get_attribute('href')
+                print(maker +''+ url[maker])                
             ## マツダのURL更新
             elif (maker == 'mzd'):
                 req = urllib.request.Request(MST_MAKER_URL.meta_url[maker], data, headers)
@@ -64,26 +64,13 @@ class AutomobileProductionScraping:
                 elems = soup.select(MST_MAKER_URL.select[maker][0])
                 for elem in elems:
                     if re.search(MST_MAKER_URL.select[maker][month], elem.getText()):
-                        ls_url.append(elem.get('href'))
-
+                        url[maker]=(MST_MAKER_URL.home_mzd + elem.get('href').replace(' ','').replace('\n',''))
+                print(maker +''+ url[maker])
             ## TODO:三菱のURL更新
             elif (maker == 'mtb'):
                 pass
 
-            print(ls_url)
-            if (len(ls_url)==0):
-                if (maker == 'szk'):
-                    maker_name ='スズキ'
-                elif (maker == 'mzd'):
-                    maker_name ='マツダ'
-                else:
-                    maker_name ='三菱'
-                warning = tk.Tk()
-                warning.withdraw()
-                messagebox.showwarning("警告", maker_name +'の'+str(month)+'月の情報はまだ非公開です。'+'処理を中断します。')
-                sys.exit(1)
-            for (index, url) in enumerate(ls_url):
-                ls_url[index] = re.search(r'/.*l', url).group(0)
+        return url
 
     # データ出力
     def output_excle(self, seisan_daisu):
