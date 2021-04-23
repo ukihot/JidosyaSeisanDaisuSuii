@@ -95,8 +95,10 @@ class MainView:
                 messagebox.showwarning("警告", 'エラーにより処理を中断します。')
                 traceback.print_exc()
                 sys.exit(1)
-            messagebox.showinfo("確認", '処理が完了しました。')
             
+            messagebox.showinfo("確認", '処理が完了しました。')
+            self.top.destroy()
+            sys.exit(0)
         else:
             self.root.destroy()
 

@@ -36,11 +36,11 @@ class AutomobileProductionScraping:
     def __init__(self,url,month):
         if not os.path.exists('data'):
             os.mkdir('data')
-        self.update_mst_maker_url()
-        self.output_excle(self.aggregation())
+        self.update_mst_maker_url(url,month)
+        self.output_excle(self.aggregation(url, month))
 
     # マスタ値更新
-    def update_mst_maker_url(self):
+    def update_mst_maker_url(self,url ,month):
         #　各メーカーの生産台数がわかるページURLを調査する。
         makers =['szk','mzd','mtb']
         ls_url = []
@@ -138,7 +138,7 @@ class AutomobileProductionScraping:
             tar = [row for row in csv.reader(f)]
         return tar[r][c].replace(' ', '').replace('\n','')
 
-    def aggregation(self):
+    def aggregation(self, url, month):
         seisan_daisu = [0] * 11
         seisan_daisu[0] = self.xl_scraping(url['tyt'], '生産', 2, 6, MST_MAKER_URL.tyt_key[month], "data/toyota.xls")
         seisan_daisu[1] = self.xl_scraping(url['tyt'], '生産', 2, 13, MST_MAKER_URL.tyt_key[month], "data/toyota.xls")
