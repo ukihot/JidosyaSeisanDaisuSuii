@@ -21,6 +21,7 @@ from bs4 import BeautifulSoup
 from openpyxl import Workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import Select
 
 import MST_MAKER_URL
@@ -33,29 +34,31 @@ data = urllib.parse.urlencode(values).encode('utf-8')
 
 class AutomobileProductionScraping:
 
-    def __init__(self,url,month):
+    def __init__(self,month):
+        self.month = month
         if not os.path.exists('data'):
             os.mkdir('data')
-        self.update_mst_maker_url(url,month)
-        self.output_excle(self.aggregation(url, month))
+        reference_url = self.update_reference_url()
+        self.output_excle(self.aggregation(reference_url))
 
-    # マスタ値更新
-    def update_mst_maker_url(self,url ,month):
-        #　各メーカーの生産台数がわかるページURLを調査する。
-        makers =['szk','mzd','mtb']
-        ls_url = []
+    #　各メーカーの生産台数がわかるページURLを調査する。
+    def update_reference_url(self):
+        makers =['szk','mzd','mtb','hnd']
+        url={'mzd':'https://newsroom.mazda.com/ja/publicity/release/2021/202102/210225a.html','szk':'https://www.suzuki.co.jp/release/d/2021/0225/','mtb':'https://www.mitsubishi-motors.com/jp/newsrelease/2021/detail5509.html','isz':'http://www.jada.or.jp/y-r-maker-isuzu','hso':'http://www.jada.or.jp/data/year/y-r-hanbai/y-r-maker/y-r-maker-mitsubishi-fuso/','tyt':'https://global.toyota/pages/global_toyota/company/profile/production-sales-figures/production_sales_figures_jp.xls','hnd':'https://www.honda.co.jp/content/dam/site/www/investors/cq_img/financial_data/self.monthly/CY2020_202102_self.monthly_data_j.xlsx'}
+        option = Options()
+        option.add_argument('--headless')
+        driver = webdriver.Chrome(options=option)
         for maker in makers:
             ## スズキのURL更新
             if (maker == 'szk'):
-                driver = webdriver.Chrome()
                 driver.get(MST_MAKER_URL.meta_url[maker])
                 dropdown = driver.find_element_by_name('ad')
                 select = Select(dropdown)
                 select.select_by_value('ad2020')
                 elements = driver.find_elements_by_tag_name('a')
                 for element in elements:
-                    if re.search(MST_MAKER_URL.select[maker][month] ,element.text):
-                        ls_url.append(element.get_attribute('href'))
+                    if re.search(MST_MAKER_URL.select[maker][self.month] ,element.text):
+                        url[maker]=element.get_attribute('href')
             ## マツダのURL更新
             elif (maker == 'mzd'):
                 req = urllib.request.Request(MST_MAKER_URL.meta_url[maker], data, headers)
@@ -63,31 +66,21 @@ class AutomobileProductionScraping:
                 soup = BeautifulSoup(html, "html.parser")
                 elems = soup.select(MST_MAKER_URL.select[maker][0])
                 for elem in elems:
-                    if re.search(MST_MAKER_URL.select[maker][month], elem.getText()):
-                        ls_url.append(elem.get('href'))
-
-            ## TODO:三菱のURL更新
-            elif (maker == 'mtb'):
-                pass
-
-            print(ls_url)
-            if (len(ls_url)==0):
-                if (maker == 'szk'):
-                    maker_name ='スズキ'
-                elif (maker == 'mzd'):
-                    maker_name ='マツダ'
-                else:
-                    maker_name ='三菱'
-                warning = tk.Tk()
-                warning.withdraw()
-                messagebox.showwarning("警告", maker_name +'の'+str(month)+'月の情報はまだ非公開です。'+'処理を中断します。')
-                sys.exit(1)
-            for (index, url) in enumerate(ls_url):
-                ls_url[index] = re.search(r'/.*l', url).group(0)
+                    if re.search(MST_MAKER_URL.select[maker][self.month], elem.getText()):
+                        url[maker]=(MST_MAKER_URL.home_mzd + elem.get('href').replace(' ','').replace('\n',''))
+            else:
+                driver.get(MST_MAKER_URL.meta_url[maker])
+                elements = driver.find_elements_by_tag_name('a')
+                for element in elements:
+                    if re.search(MST_MAKER_URL.select[maker][self.month] ,element.text):
+                        url[maker]=element.get_attribute('href')
+                        break
+        driver.close()
+        return url
 
     # データ出力
     def output_excle(self, seisan_daisu):
-        output_data = pd.DataFrame({'メーカー': ['トヨタ', 'ダイハツ', 'ホンダ', '日産', 'スズキ', 'マツダ', '三菱', 'スバル', 'いすゞ', '日野', '三菱ふそう'], '1月': seisan_daisu})
+        output_data = pd.DataFrame({'メーカー': ['トヨタ', 'ダイハツ', 'ホンダ', '日産', 'スズキ', 'マツダ', '三菱', 'スバル', 'いすゞ', '日野', '三菱ふそう'], str(self.month)+'月': seisan_daisu})
         # Excelワークブックの生成
         wb = Workbook()
         ws = wb.active
@@ -97,7 +90,7 @@ class AutomobileProductionScraping:
         for row_no, row in enumerate(rows, 3):
             for col_no, value in enumerate(row, 2):
                 ws.cell(row=row_no, column=col_no, value=value)
-        wb.save('./集計結果.xlsx')
+        wb.save('./【'+str(self.month)+' 月度】集計結果.xlsx')
 
     # エクセルスクレイピング
     def xl_scraping(self, url, sheet_name, row, target_row, cell_name, FILEPATH):
@@ -138,15 +131,16 @@ class AutomobileProductionScraping:
             tar = [row for row in csv.reader(f)]
         return tar[r][c].replace(' ', '').replace('\n','')
 
-    def aggregation(self, url, month):
+    def aggregation(self, url):
         seisan_daisu = [0] * 11
-        seisan_daisu[0] = self.xl_scraping(url['tyt'], '生産', 2, 6, MST_MAKER_URL.tyt_key[month], "data/toyota.xls")
-        seisan_daisu[1] = self.xl_scraping(url['tyt'], '生産', 2, 13, MST_MAKER_URL.tyt_key[month], "data/toyota.xls")
-        seisan_daisu[2] = self.xl_scraping(url['hnd'], '日本語', 84, 85, MST_MAKER_URL.hnd_key[month], "data/honda.xlsx")
+        seisan_daisu[0] = self.xl_scraping(url['tyt'], '生産', 2, 6, MST_MAKER_URL.tyt_key[self.month], "data/toyota.xls")
+        seisan_daisu[1] = self.xl_scraping(url['tyt'], '生産', 2, 13, MST_MAKER_URL.tyt_key[self.month], "data/toyota.xls")
+        seisan_daisu[2] = self.web_scraping(url['hnd'], 2,1, "data/honda.csv")
         seisan_daisu[4] = self.web_scraping(url['szk'], 2, 1, "data/suzuki.csv")
         seisan_daisu[5] = self.web_scraping(url['mzd'], 4, 2, "data/mazda.csv")
         seisan_daisu[6] = self.web_scraping(url['mtb'], 4, 2, "data/mitsubishi.csv")
-        seisan_daisu[8] = self.web_scraping(url['isz'], 0, 11, "data/isuzu.csv")
-        seisan_daisu[9] = self.xl_scraping(url['tyt'], '生産', 2, 20, MST_MAKER_URL.tyt_key[month], "data/toyota.xls")
-        seisan_daisu[10] =self.web_scraping(url['hso'], 0, 11, "data/huso.csv")
+        seisan_daisu[8] = self.web_scraping(url['isz'], 0, MST_MAKER_URL.hso_key[self.month], "data/isuzu.csv")
+        seisan_daisu[9] = self.xl_scraping(url['tyt'], '生産', 2, 20, MST_MAKER_URL.tyt_key[self.month], "data/toyota.xls")
+        seisan_daisu[10] =self.web_scraping(url['hso'], 0, MST_MAKER_URL.hso_key[self.month], "data/huso.csv")
+
         return seisan_daisu
