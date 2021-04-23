@@ -12,6 +12,7 @@ import urllib
 from tkinter import messagebox
 from urllib.request import urlopen
 
+import chromedriver_binary
 import pandas as pd
 import requests
 import tabula
@@ -19,6 +20,8 @@ import xlrd
 from bs4 import BeautifulSoup
 from openpyxl import Workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
+from selenium import webdriver
+from selenium.webdriver.support.ui import Select
 
 import MST_MAKER_URL
 
@@ -29,31 +32,45 @@ values = {'name': 'Michael Foord',
 data = urllib.parse.urlencode(values).encode('utf-8')
 
 class AutomobileProductionScraping:
-    month = None
-    url = None
-    def __init__(self):
+
+    def __init__(self,url,month):
         if not os.path.exists('data'):
             os.mkdir('data')
-
-        self.flont()
         self.update_mst_maker_url()
         self.output_excle(self.aggregation())
-        self.root.withdraw()
-        messagebox.showinfo("確認", '処理が完了しました。')
 
     # マスタ値更新
     def update_mst_maker_url(self):
         #　各メーカーの生産台数がわかるページURLを調査する。
-        makers =['mzd','mtb','szk']
+        makers =['szk','mzd','mtb']
+        ls_url = []
         for maker in makers:
-            req = urllib.request.Request(MST_MAKER_URL.meta_url[maker], data, headers)
-            html = urllib.request.urlopen(req)
-            soup = BeautifulSoup(html, "html.parser")
-            elems = soup.select(MST_MAKER_URL.select[maker][0])
-            ls_url = []
+            ## スズキのURL更新
+            if (maker == 'szk'):
+                driver = webdriver.Chrome()
+                driver.get(MST_MAKER_URL.meta_url[maker])
+                dropdown = driver.find_element_by_name('ad')
+                select = Select(dropdown)
+                select.select_by_value('ad2020')
+                elements = driver.find_elements_by_tag_name('a')
+                for element in elements:
+                    if re.search(MST_MAKER_URL.select[maker][month] ,element.text):
+                        ls_url.append(element.get_attribute('href'))
+            ## マツダのURL更新
+            elif (maker == 'mzd'):
+                req = urllib.request.Request(MST_MAKER_URL.meta_url[maker], data, headers)
+                html = urllib.request.urlopen(req)
+                soup = BeautifulSoup(html, "html.parser")
+                elems = soup.select(MST_MAKER_URL.select[maker][0])
+                for elem in elems:
+                    if re.search(MST_MAKER_URL.select[maker][month], elem.getText()):
+                        ls_url.append(elem.get('href'))
 
-            for elem in elems:
-                ls_url.append(elem.get('href')) if (extraction := re.search(MST_MAKER_URL.select[maker][self.month], elem.getText())) else None
+            ## TODO:三菱のURL更新
+            elif (maker == 'mtb'):
+                pass
+
+            print(ls_url)
             if (len(ls_url)==0):
                 if (maker == 'szk'):
                     maker_name ='スズキ'
@@ -63,11 +80,10 @@ class AutomobileProductionScraping:
                     maker_name ='三菱'
                 warning = tk.Tk()
                 warning.withdraw()
-                messagebox.showwarning("警告", maker_name +'の'+str(self.month)+'月の情報はまだ非公開です。'+'処理を中断します。')
+                messagebox.showwarning("警告", maker_name +'の'+str(month)+'月の情報はまだ非公開です。'+'処理を中断します。')
                 sys.exit(1)
             for (index, url) in enumerate(ls_url):
                 ls_url[index] = re.search(r'/.*l', url).group(0)
-            print(ls_url)
 
     # データ出力
     def output_excle(self, seisan_daisu):
@@ -124,78 +140,13 @@ class AutomobileProductionScraping:
 
     def aggregation(self):
         seisan_daisu = [0] * 11
-        seisan_daisu[0] = self.xl_scraping(self.url['tyt'], '生産', 2, 6, MST_MAKER_URL.tyt_key[self.month], "data/toyota.xls")
-        seisan_daisu[1] = self.xl_scraping(self.url['tyt'], '生産', 2, 13, MST_MAKER_URL.tyt_key[self.month], "data/toyota.xls")
-        seisan_daisu[2] = self.xl_scraping(self.url['hnd'], '日本語', 84, 85, MST_MAKER_URL.hnd_key[self.month], "data/honda.xlsx")
-        seisan_daisu[4] = self.web_scraping(self.url['szk'], 2, 1, "data/suzuki.csv")
-        seisan_daisu[5] = self.web_scraping(self.url['mzd'], 4, 2, "data/mazda.csv")
-        seisan_daisu[6] = self.web_scraping(self.url['mtb'], 4, 2, "data/mitsubishi.csv")
-        seisan_daisu[8] = self.web_scraping(self.url['isz'], 0, 11, "data/isuzu.csv")
-        seisan_daisu[9] = self.xl_scraping(self.url['tyt'], '生産', 2, 20, MST_MAKER_URL.tyt_key[self.month], "data/toyota.xls")
-        seisan_daisu[10] =self.web_scraping(self.url['hso'], 0, 11, "data/huso.csv")
+        seisan_daisu[0] = self.xl_scraping(url['tyt'], '生産', 2, 6, MST_MAKER_URL.tyt_key[month], "data/toyota.xls")
+        seisan_daisu[1] = self.xl_scraping(url['tyt'], '生産', 2, 13, MST_MAKER_URL.tyt_key[month], "data/toyota.xls")
+        seisan_daisu[2] = self.xl_scraping(url['hnd'], '日本語', 84, 85, MST_MAKER_URL.hnd_key[month], "data/honda.xlsx")
+        seisan_daisu[4] = self.web_scraping(url['szk'], 2, 1, "data/suzuki.csv")
+        seisan_daisu[5] = self.web_scraping(url['mzd'], 4, 2, "data/mazda.csv")
+        seisan_daisu[6] = self.web_scraping(url['mtb'], 4, 2, "data/mitsubishi.csv")
+        seisan_daisu[8] = self.web_scraping(url['isz'], 0, 11, "data/isuzu.csv")
+        seisan_daisu[9] = self.xl_scraping(url['tyt'], '生産', 2, 20, MST_MAKER_URL.tyt_key[month], "data/toyota.xls")
+        seisan_daisu[10] =self.web_scraping(url['hso'], 0, 11, "data/huso.csv")
         return seisan_daisu
-
-    def flont(self):
-        self.root = tk.Tk()
-        self.root.geometry("300x150")
-        self.combo = ttk.Combobox(self.root, state='readonly')
-        self.combo["values"] = ("2021/01", "2021/02", "2021/03", "2021/04", "2021/05", "2021/06", "2021/07", "2021/08", "2021/09", "2021/10", "2021/11", "2021/12")
-        self.combo.current(0)
-        self.text = tk.StringVar()
-        self.text.set("自動車生産台数を取得します。\n対象の年月を指定してください。")
-        self.label = tk.Label(self.root, textvariable=self.text)
-
-        self.button = tk.Button(self.root,
-                                text="登録",
-                                command=self.select_month)  
-        self.label.pack()
-        self.combo.pack()
-        self.button.pack()
-        self.root.mainloop()
-
-    def select_month(self):
-        month = self.combo.get()
-        if (month == '2021/01'):
-            self.url = MST_MAKER_URL.jan_url
-            self.month = 1
-        elif(month == '2021/02'):
-            self.url = MST_MAKER_URL.feb_url
-            self.month = 2
-        elif(month == '2021/03'):
-            self.url = MST_MAKER_URL.mar_url
-            self.month = 3
-        elif(month == '2021/04'):
-            self.url = MST_MAKER_URL.apr_url
-            self.month = 4
-        elif(month == '2021/05'):
-            self.url = MST_MAKER_URL.may_url
-            self.month = 5
-        elif(month == '2021/06'):
-            self.url = MST_MAKER_URL.jun_url
-            self.month = 6
-        elif(month == '2021/07'):
-            self.url = MST_MAKER_URL.jul_url
-            self.month = 7
-        elif(month == '2021/08'):
-            self.url = MST_MAKER_URL.aug_url
-            self.month = 8
-        elif(month == '2021/09'):
-            self.url = MST_MAKER_URL.sep_url
-            self.month = 9
-        elif(month == '2021/10'):
-            self.url = MST_MAKER_URL.oct_url
-            self.month = 10
-        elif(month == '2021/11'):
-            self.url = MST_MAKER_URL.nov_url
-            self.month = 11
-        elif(month == '2021/12'):
-            self.url = MST_MAKER_URL.dec_url
-            self.month = 12
-        
-        self.root.withdraw()
-        messagebox.showinfo("確認", str(month)+'の生産台数を取得します。')
-        self.root.destroy()
-
-# Main
-automobileProductionScraping = AutomobileProductionScraping()
-shutil.rmtree('data')
