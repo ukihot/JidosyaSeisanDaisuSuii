@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 #coding: UTF-8
 import csv
+import datetime
 import io
+import logging
 import os
 import re
 import shutil
@@ -14,9 +16,15 @@ from tkinter import messagebox
 import AutomobileProductionScraping
 import MST_MAKER_URL
 
+
 class MainView:
 
     def __init__(self):
+        today = datetime.date.today()
+        if today.month >3:
+            self.current_month = today.month-2
+        else:
+            self.current_month = today.month
         self.root = tk.Tk()
         self.root.withdraw()
         self.root.after(0, self.main_proc)
@@ -28,7 +36,8 @@ class MainView:
         self.top = tk.Toplevel(self.root)
         self.top.geometry("300x150")
         self.combo = ttk.Combobox(self.top, state='readonly')
-        self.combo["values"] = ("2021/01", "2021/02", "2021/03", "2021/04", "2021/05", "2021/06", "2021/07", "2021/08", "2021/09", "2021/10", "2021/11", "2021/12")
+        months = ["2021/01", "2021/02", "2021/03", "2021/04", "2021/05", "2021/06", "2021/07", "2021/08", "2021/09", "2021/10", "2021/11", "2021/12"]
+        self.combo["values"] =[months[i] for i in range(self.current_month)]
         self.combo.current(0)
         self.label = tk.Label(self.top, text='自動車生産台数を取得します。\n対象の年月を指定してください。')
         self.button = tk.Button(self.top, text="登録", command=self.select_month) 
@@ -80,7 +89,11 @@ class MainView:
                 AutomobileProductionScraping.AutomobileProductionScraping(month)
             except:
                 messagebox.showwarning("警告", 'エラーにより処理を中断しちゃいます。')
-                traceback.print_exc()
+                logger = logging.getLogger('Logging')
+                file_handler = logging.FileHandler('error.log', mode='a', encoding='utf-8')
+                file_handler.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
+                logger.addHandler(file_handler)
+                logger.exception(traceback.format_exc())
                 sys.exit(1)
             
             messagebox.showinfo("確認", '処理が完了しちゃいました。')
@@ -88,5 +101,4 @@ class MainView:
             sys.exit(0)
         else:
             self.root.destroy()
-
 main_view = MainView()

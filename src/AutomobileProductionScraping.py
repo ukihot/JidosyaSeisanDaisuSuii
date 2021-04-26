@@ -32,6 +32,13 @@ values = {'name': 'Michael Foord',
           'language': 'Python' }
 data = urllib.parse.urlencode(values).encode('utf-8')
 
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.dirname(__file__)
+    return os.path.join(base_path, relative_path)
+
 class AutomobileProductionScraping:
 
     def __init__(self,month):
@@ -40,14 +47,16 @@ class AutomobileProductionScraping:
             os.mkdir('data')
         reference_url = self.update_reference_url()
         self.output_excle(self.aggregation(reference_url))
+        shutil.rmtree('data')
 
     #　各メーカーの生産台数がわかるページURLを調査する。
     def update_reference_url(self):
         makers =['szk','mzd','mtb','hnd']
-        url={'mzd':'https://newsroom.mazda.com/ja/publicity/release/2021/202102/210225a.html','szk':'https://www.suzuki.co.jp/release/d/2021/0225/','mtb':'https://www.mitsubishi-motors.com/jp/newsrelease/2021/detail5509.html','isz':'http://www.jada.or.jp/y-r-maker-isuzu','hso':'http://www.jada.or.jp/data/year/y-r-hanbai/y-r-maker/y-r-maker-mitsubishi-fuso/','tyt':'https://global.toyota/pages/global_toyota/company/profile/production-sales-figures/production_sales_figures_jp.xls','hnd':'https://www.honda.co.jp/content/dam/site/www/investors/cq_img/financial_data/self.monthly/CY2020_202102_self.monthly_data_j.xlsx'}
+        # 初期値は1月度のもの
+        url={'mzd':'https://newsroom.mazda.com/ja/publicity/release/2021/202102/210225a.html','szk':'https://www.suzuki.co.jp/release/d/2021/0225/','mtb':'https://www.mitsubishi-motors.com/jp/newsrelease/2021/detail5509.html','isz':'http://www.jada.or.jp/y-r-maker-isuzu','hso':'http://www.jada.or.jp/data/year/y-r-hanbai/y-r-maker/y-r-maker-mitsubishi-fuso/','tyt':'https://global.toyota/pages/global_toyota/company/profile/production-sales-figures/production_sales_figures_jp.xls','hnd':'https://www.honda.co.jp/content/dam/site/www/investors/cq_img/financial_data/self.monthly/CY2020_202102_self.monthly_data_j.xlsx','nsn':''}
         option = Options()
         option.add_argument('--headless')
-        driver = webdriver.Chrome(options=option)
+        driver = webdriver.Chrome(resource_path('../lib/chromedriver.exe'), options=option)
         for maker in makers:
             ## スズキのURL更新
             if (maker == 'szk'):
